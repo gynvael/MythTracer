@@ -91,22 +91,22 @@ class V3D_Base {
     return sqrt(SqrLength());
   }
 
-  T SqrDistance(const V3D_Base& a) {
+  T SqrDistance(const V3D_Base& a) const {
     const T dx = a.v[0] - v[0];
     const T dy = a.v[1] - v[1];
     const T dz = a.v[2] - v[2];    
     return dx * dx + dy * dy + dz * dz;
   }
 
-  T Distance(const V3D_Base& a) {
+  T Distance(const V3D_Base& a) const {
     return sqrt(SqrDistance(a));
   }
 
-  T Dot(const V3D_Base& a) {
+  T Dot(const V3D_Base& a) const {
     return a.v[0] * v[0] + a.v[1] * v[1] + a.v[2] * v[2];
   }
 
-  V3D_Base Cross(const V3D_Base& a) {
+  V3D_Base Cross(const V3D_Base& a) const {
     return V3D_Base(
         v[1] * a.v[2] - v[2] * a.v[1],
         v[2] * a.v[0] - v[0] * a.v[2],
@@ -119,7 +119,7 @@ class V3D_Base {
     v[0] /= l; v[1] /= l; v[2] /= l;
   }
 
-  V3D_Base DupNorm() {
+  V3D_Base DupNorm() const {
     const T l = Length();    
     return V3D_Base(v[0] / l, v[1] / l, v[2] / l);
   }
