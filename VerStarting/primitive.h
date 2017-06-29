@@ -3,6 +3,7 @@
 #include <string>
 #include <utility>
 
+#include "aabb.h"
 #include "math3d.h"
 #include "ray.h"
 
@@ -13,13 +14,16 @@ class Primitive {
   virtual ~Primitive() { };
 
   // Returns the axis-aligned bounding box of the primitive.
-  virtual std::pair<V3D, V3D> GetAABB() const = 0;
+  virtual AABB GetAABB() const = 0;
 
   // Returns true if the primitive intersected with the given ray, as well as
   // the point of intersection and distance from ray origin to the intersection
   // point.
   virtual bool IntersectRay(const Ray& ray, V3D *point,
                             V3D::basetype *distance) const = 0;
+
+  // Returns normal in the specified point.
+  virtual V3D GetNormal(const V3D& point) const = 0;
 
   // Returns the reflected ray.
   virtual Ray ReflectionRay(const Ray& ray) const = 0;

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <string>
 
 #include "primitive_triangle.h"
@@ -10,19 +11,39 @@ using math3d::V3D;
 Triangle::~Triangle() {
 }
 
-std::pair<V3D, V3D> Triangle::GetAABB() const {
-  return std::make_pair(
-      V3D(
-        std::min({vertex[0].v[0], vertex[1].v[0], vertex[2].v[0]}),
-        std::min({vertex[0].v[1], vertex[1].v[1], vertex[2].v[1]}),
-        std::min({vertex[0].v[2], vertex[1].v[2], vertex[2].v[2]})
-      ),
-      V3D(
-        std::min({vertex[0].v[0], vertex[1].v[0], vertex[2].v[0]}),
-        std::min({vertex[0].v[1], vertex[1].v[1], vertex[2].v[1]}),
-        std::min({vertex[0].v[2], vertex[1].v[2], vertex[2].v[2]})
-      )
-  );
+AABB Triangle::GetAABB() const {
+  AABB aabb{vertex[0], vertex[0]};
+  aabb.Extend(vertex[1]);
+  aabb.Extend(vertex[2]);  
+  return aabb;
+}
+
+// http://www.mathopenref.com/heronsformula.html
+static V3D::basetype AreaOfTriangle(
+    V3D::basetype a, V3D::basetype b, V3D::basetype c) {
+  V3D::basetype p = (a + b + c) / 2.0;
+  return sqrt(p * (p - a) * (p - b) * (p - c));
+}
+
+// https://classes.soe.ucsc.edu/cmps160/Fall10/resources/barycentricInterpolation.pdf
+V3D Triangle::GetNormal(const V3D& point) const {
+  // Using barycentric interpolation. There might be a better / faster way to
+  // do it.
+  V3D::basetype a = vertex[0].Distance(vertex[1]);
+  V3D::basetype b = vertex[1].Distance(vertex[2]);
+  V3D::basetype c = vertex[2].Distance(vertex[0]);
+
+  V3D::basetype p0 = point.Distance(vertex[0]);
+  V3D::basetype p1 = point.Distance(vertex[1]);
+  V3D::basetype p2 = point.Distance(vertex[2]);
+
+  V3D::basetype n0 = AreaOfTriangle(b, p2, p1);
+  V3D::basetype n1 = AreaOfTriangle(c, p0, p2);
+  V3D::basetype n2 = AreaOfTriangle(a, p1, p0);
+
+  V3D::basetype n = n0 + n1 + n2;
+
+  return (normal[0] * n0 + normal[1] * n1 + normal[2] * n2) / n;
 }
 
 bool Triangle::IntersectRay(const Ray& ray, V3D *point,
@@ -52,6 +73,10 @@ bool Triangle::IntersectRay(const Ray& ray, V3D *point,
   }
 
   *distance = e2.Dot(qvec) * inv_det;
+  if (*distance < 0.0) {
+    // Intersection is behind the camera.
+    return false;
+  }
   *point = ray.origin + ray.direction * *distance;
   return true;
 }

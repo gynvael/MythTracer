@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
 #include <list>
+#include <utility>
+#include <vector>
 
 #include "math3d.h"
 #include "primitive.h"
@@ -34,10 +36,35 @@ class OctTree {
       V3D::basetype *distance          // Distance to intersection.
   ) const;
 
- private:
-  // TODO(gynvael): Maybe a vector of unique pointers?
-  std::list<std::unique_ptr<Primitive>> primitives;
+  AABB GetAABB() const;
 
+ private:
+  // The minimum primitives required to make a split.
+  static const int SPLIT_BOUNDARY = 16;
+
+  // A node might either have both primitives or Nodes.
+  // A node is not the owner of any of the objects that is contains pointers to.
+  struct Node {
+    std::vector<Primitive*> primitives;
+    std::vector<Node> nodes;  // Always either 0 or 8 nodes.    
+
+    V3D center;
+    AABB aabb;
+
+    void CalcCenter();
+    void AttemptSplit();
+
+    // Check is this node colides with the ray.
+    bool NodeIntersectRay(const Ray& ray, V3D::basetype *dist) const;
+
+    // Returns a primitive (if any) that intersects with the ray with the
+    // lowest distance.
+    const Primitive* PrimitiveIntersectRay(
+        const Ray& ray, V3D *point, V3D::basetype *distance) const;
+  };
+
+  Node root;
+  std::list<std::unique_ptr<Primitive>> primitives;
 };
 
 }  // namespace raytracer
