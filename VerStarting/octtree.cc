@@ -14,6 +14,7 @@ void OctTree::AddPrimitive(Primitive *p) {
 }
 
 void OctTree::Finalize() {
+  printf("Triangles: %u\n", (unsigned int)primitives.size());
   root.primitives.reserve(primitives.size());
   for (auto& p : primitives) {
     root.primitives.push_back(p.get());
@@ -130,10 +131,10 @@ void OctTree::Node::AttemptSplit() {
 // https://gamedev.stackexchange.com/questions/18436
 bool OctTree::Node::NodeIntersectRay(
     const Ray& ray, V3D::basetype *dist) const {
-  V3D dirfrac(
+  V3D dirfrac{
       1.0 / ray.direction.x(),
       1.0 / ray.direction.y(),
-      1.0 / ray.direction.z());
+      1.0 / ray.direction.z()};
 
   V3D::basetype t1 = (aabb.min.x() - ray.origin.x()) * dirfrac.x();
   V3D::basetype t2 = (aabb.max.x() - ray.origin.x()) * dirfrac.x();

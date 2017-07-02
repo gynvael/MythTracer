@@ -1,7 +1,7 @@
 CFLAGS=-Wall -Wextra -O3 -ggdb
 
 %.o: %.cc
-	g++ $(CFLAGS) -c -o $@ $<
+	g++ $(CFLAGS) -c -o $@ $< -fopenmp
 
 math3d_test: math3d_test.o test_helper.o
 	g++ $(CFLAGS) \
@@ -18,14 +18,15 @@ octtree_test: octtree_test.o aabb.o octtree.o primitive_triangle.o test_helper.o
 	  aabb.o \
 	  -o octtree_test
 
-mythtracer: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o
+mythtracer: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camera.o
 	g++ $(CFLAGS) \
 	  mythtracer.o \
 	  objreader.o \
 	  octtree.o \
 	  primitive_triangle.o \
 	  aabb.o \
-	  -o mythtracer	  
+	  camera.o \
+	  -o mythtracer	-lgomp
 
 test: math3d_test octtree_test
 	./math3d_test

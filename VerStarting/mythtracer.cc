@@ -1,12 +1,20 @@
 #include <memory>
+#ifdef __unix__
+#  include <sys/stat.h>
+#  include <sys/types.h>
+#else
+#  include <direct.h>
+#endif
+#include "camera.h"
 #include "objreader.h"
 #include "octtree.h"
 
 using namespace raytracer;
 using math3d::V3D;
+using math3d::M4D;
 
-const int W = 1920;  // 960 480
-const int H = 1080;  // 540 270
+const int W = 1920/4;  // 960 480
+const int H = 1080/4;  // 540 270
 
 unsigned char bitmap[W * H];
 
@@ -35,12 +43,18 @@ unsigned char TraceRay(OctTree *tree, const Ray& ray) {
 }
 
 int main(void) {
-  printf("Resolution: %u %u\n", W, H);
+  puts("Creating anim/ directory");
+#ifdef __unix__
+  mkdir("anim", 0700);
+#else
+  _mkdir("anim");
+#endif
 
-  OctTree tree;
+  printf("Resolution: %u %u\n", W, H);
 
   puts("Reading .OBJ file.");
 
+  OctTree tree;
   if (!ReadObjFile(&tree, "../Models/Living Room USSU Design.obj")) {
     return -1;
   }
@@ -57,38 +71,43 @@ int main(void) {
       aabb.max.v[1],
       aabb.max.v[2]);
 
+  int frame = 0;
+  for (double angle = 0.0; angle <= 360.0; angle += 1.0, frame++) {
+
+  Camera cam{
+    { 300.0, 57.0, 0.0 },
+    10.0, angle, 0.0,
+    100.0
+  };
+
+  Camera::Sensor sensor = cam.GetSensor(W, H);
+
 
   puts("Rendering.");
-
-  V3D st(-9.60/8, 5.40/8, 0.0);
-  V3D en( 9.60/8,-5.40/8, 0.0);
-  V3D d = en - st;
-  V3D::basetype dx = d.x() / W;
-  V3D::basetype dy = d.y() / H;
-
-  V3D cam_origin(300.0, 57.0, 120.0);
-
-  V3D::basetype y = st.y();
-  for (int j = 0; j < H; j++, y += dy) {
-    V3D::basetype x = st.x();
-    for (int i = 0; i < W; i++, x += dx) {
-      V3D cam_dir(x, y, -1.0);
-      cam_dir.Norm();
-
-      Ray ray{cam_origin, cam_dir};
-
-      bitmap[j * W + i] = TraceRay(&tree, ray);
+  #pragma omp parallel  
+  {
+  #pragma omp for
+  for (int j = 0; j < H; j++) {
+    for (int i = 0; i < W; i++) {
+      bitmap[j * W + i] = TraceRay(&tree, sensor.GetRay(i, j));
     }
-    putchar('.'); fflush(stdout);    
+    putchar('.'); fflush(stdout);
+  }
   }
 
   puts("Writing");
 
-  FILE *f = fopen("dump.raw", "wb");
+  char fname[256];
+  sprintf(fname, "anim/dump_%.5i.raw", frame);
+
+  FILE *f = fopen(fname, "wb");
   fwrite(bitmap, sizeof(bitmap), 1, f);
   fclose(f);
 
+  }
+
   puts("Done");
+
 
   return 0;
 }
