@@ -46,6 +46,24 @@ V3D Triangle::GetNormal(const V3D& point) const {
   return (normal[0] * n0 + normal[1] * n1 + normal[2] * n2) / n;
 }
 
+V3D Triangle::GetUVW(const V3D& point) const {
+  V3D::basetype a = vertex[0].Distance(vertex[1]);
+  V3D::basetype b = vertex[1].Distance(vertex[2]);
+  V3D::basetype c = vertex[2].Distance(vertex[0]);
+
+  V3D::basetype p0 = point.Distance(vertex[0]);
+  V3D::basetype p1 = point.Distance(vertex[1]);
+  V3D::basetype p2 = point.Distance(vertex[2]);
+
+  V3D::basetype n0 = AreaOfTriangle(b, p2, p1);
+  V3D::basetype n1 = AreaOfTriangle(c, p0, p2);
+  V3D::basetype n2 = AreaOfTriangle(a, p1, p0);
+
+  V3D::basetype n = n0 + n1 + n2;
+ 
+  return (uvw[0] * n0 + uvw[1] * n1 + uvw[2] * n2) / n;
+}
+
 bool Triangle::IntersectRay(const Ray& ray, V3D *point,
                             V3D::basetype *distance) const {
   // Moller-Trumbore intersection algorithm, as presented on Wikipedia.
@@ -79,16 +97,6 @@ bool Triangle::IntersectRay(const Ray& ray, V3D *point,
   }
   *point = ray.origin + ray.direction * *distance;
   return true;
-}
-
-Ray Triangle::ReflectionRay(const Ray& ray) const {
-  (void)ray;
-  return Ray(V3D(), V3D()); // TODO
-}
-
-Ray Triangle::RefractionRay(const Ray& ray) const {
-  (void)ray;
-  return Ray(V3D(), V3D());  // TODO
 }
 
 std::string Triangle::Serialize() const{

@@ -6,6 +6,7 @@
 #include "aabb.h"
 #include "math3d.h"
 #include "ray.h"
+#include "material.h"
 
 namespace raytracer {
 
@@ -25,21 +26,21 @@ class Primitive {
   // Returns normal in the specified point.
   virtual V3D GetNormal(const V3D& point) const = 0;
 
-  // Returns the reflected ray.
-  virtual Ray ReflectionRay(const Ray& ray) const = 0;
-
-  // Returns the ray that passed through the object.
-  virtual Ray RefractionRay(const Ray& ray) const = 0;
+  // Returns texture coords (UVW mapping) at the specified point.
+  virtual V3D GetUVW(const V3D& point) const = 0;
 
   // Return serialized primitive.
   // TODO(gynvael): Actually provide an implementation of this to dump all the
   // common properties. Perhaps also add a deserialize method or function.
-  virtual std::string Serialize() const = 0;  
+  virtual std::string Serialize() const = 0;
   // Note: Each implementation should have a Deserialize method:
   // static bool Deserialize(
   //     std::unique_ptr<T> *primitive, const std::string& data);
 
   // Common primitive properties go here.
+  Material *mtl = nullptr;  // The primitive is not the owner of this object.
+  int debug_line_no = 0;  // Line in the input file (if any) where this
+                          // primitive was defined.
 };
 
 }  // namespace raytracer

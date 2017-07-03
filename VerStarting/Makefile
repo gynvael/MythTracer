@@ -18,7 +18,7 @@ octtree_test: octtree_test.o aabb.o octtree.o primitive_triangle.o test_helper.o
 	  aabb.o \
 	  -o octtree_test
 
-mythtracer: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camera.o
+mythtracer: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camera.o texture.o
 	g++ $(CFLAGS) \
 	  mythtracer.o \
 	  objreader.o \
@@ -26,7 +26,9 @@ mythtracer: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camer
 	  primitive_triangle.o \
 	  aabb.o \
 	  camera.o \
-	  -o mythtracer	-lgomp
+	  texture.o \
+	  -o mythtracer	\
+	  -lgomp -lSDL2 -lSDL2_image
 
 test: math3d_test octtree_test
 	./math3d_test
