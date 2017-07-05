@@ -16,8 +16,8 @@ using namespace raytracer;
 using math3d::V3D;
 using math3d::M4D;
 
-const int W = 1920*2;  // 960 480
-const int H = 1080*2;  // 540 270
+const int W = 1920/4;  // 960 480
+const int H = 1080/4;  // 540 270
 
 const int MAX_RECURSION_LEVEL = 5;
 
@@ -289,14 +289,19 @@ int main(void) {
   std::vector<PerPixelDebugInfo> debug(W * H);
   std::vector<uint8_t> bitmap(W * H * 3);
   int frame = 0;
-  for (double angle = 0.0; angle <= 360.0; angle += 1.0, frame++) {
+  for (double angle = 0.0; angle <= 360.0; angle += 2.0, frame++) {
+
+    // Skip some frames    
+    if (frame <= 33) {
+      continue;
+    }
 
   // Really good camera setting.
-  Camera cam{
+  /*Camera cam{
     { 300.0, 57.0, 160.0 },
      0.0, 180.0, 0.0,
      110.0
-  };
+  };*/
 
   // Camera set a lamp.
   /*Camera cam{
@@ -305,18 +310,18 @@ int main(void) {
     110.0
   };*/
 
-  /*Camera cam{
-    { 300.0, 57.0, 20.0 },
-     35.0, 180.0, 0.0,
+  Camera cam{
+    { 300.0, 107.0, 40.0 },
+     30.0, angle + 90, 0.0,
      110.0
-  };*/
+  };
 
   // XXX: light at camera
   scene.lights.clear();
   scene.lights.push_back(
       Light{
           { 231.82174, 81.69966, -27.78259 },
-          { 0.2, 0.2, 0.2 },
+          { 0.3, 0.3, 0.3 },
           { 1.0, 1.0, 1.0 },
           { 1.0, 1.0, 1.0 }
   });
@@ -325,24 +330,24 @@ int main(void) {
       Light{
           { 200, 80.0, 0 },
           { 0.0, 0.0, 0.0 },
-          { 0.7, 0.7, 0.7 },
-          { 1.0, 1.0, 1.0 }
+          { 0.3, 0.3, 0.3 },
+          { 0.3, 0.3, 0.3 }
   });
 
   scene.lights.push_back(
       Light{
           { 200, 80.0, 80 },
           { 0.0, 0.0, 0.0 },
-          { 0.7, 0.7, 0.7 },
-          { 1.0, 1.0, 1.0 }
+          { 0.3, 0.3, 0.3 },
+          { 0.3, 0.3, 0.3 }
   });
 
   scene.lights.push_back(
       Light{
           { 200, 80.0, 160 },
           { 0.0, 0.0, 0.0 },
-          { 0.7, 0.7, 0.7 },
-          { 1.0, 1.0, 1.0 }
+          { 0.3, 0.3, 0.3 },
+          { 0.3, 0.3, 0.3 }
   });  
 
   puts("Rendering.");
@@ -354,7 +359,8 @@ int main(void) {
   #pragma omp for
   for (int j = 0; j < H; j++) {
     for (int i = 0; i < W; i++) {
-      V3D color = TraceRay(&scene, sensor.GetRay(i, j), &debug[j * W + i]);
+      V3D color = TraceRay(&scene, sensor.GetRay(i, j), 
+          nullptr /* &debug[j * W + i] */);
       V3DtoRGB(color, &bitmap[(j * W + i) * 3]);
     }
     putchar('.'); fflush(stdout);
@@ -374,7 +380,7 @@ int main(void) {
   fwrite(&bitmap[0], bitmap.size(), 1, f);
   fclose(f);
 
-  sprintf(fname, "anim/dump_%.5i.txt", frame);
+  /*sprintf(fname, "anim/dump_%.5i.txt", frame);
   f = fopen(fname, "w");
   int idx = 0;
   for (int j = 0; j < H; j++) {
@@ -386,6 +392,7 @@ int main(void) {
     }
   }
   fclose(f);
+  */
 
   break;
   }
