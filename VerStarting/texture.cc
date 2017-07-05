@@ -10,7 +10,7 @@ using math3d::V3D;
 
 V3D Texture::GetColorAt(double u, double v, double distance) const {
   (void)distance; // TODO(gynvael): Add mipmaps.
-  // TODO(gynvael): Add bilinear filtring.
+
   u = fmod(u, 1.0);
   v = fmod(v, 1.0);
   if (u < 0.0) u += 1.0;
@@ -19,10 +19,42 @@ V3D Texture::GetColorAt(double u, double v, double distance) const {
   // Flip the vertical.
   v = 1.0 - v;
 
-  size_t x = (int)(u * (width - 1));
-  size_t y = (int)(v * (height - 1));
+  double x = u * (double)(width - 1);
+  double y = v * (double)(height - 1);
 
-  return colors.at(x + y * width);
+  size_t base_x = (size_t)x;
+  size_t base_y = (size_t)y;
+
+  size_t coords[4][2] = {
+    { base_x,
+      base_y },
+    { base_x + 1 == width ? base_x : base_x + 1,
+      base_y },
+    { base_x,
+      base_y + 1 == height ? base_y : base_y + 1 },
+    { base_x + 1 == width ? base_x : base_x + 1,
+      base_y + 1 == height ? base_y : base_y + 1 }
+  };
+
+  V3D c[4];
+  for (int i = 0; i < 4; i++) {
+    c[i] = colors.at(coords[i][0] + coords[i][1] * width);
+  }
+
+  double dist_x = fmod(x, 1.0);
+  double dist_y = fmod(y, 1.0);
+
+  double area[4] = {
+    (1.0 - dist_x) * (1.0 - dist_y),
+    dist_x * (1.0 - dist_y),
+    (1.0 - dist_x) * dist_y,
+    dist_x * dist_y
+  };  
+
+  return c[0] * area[0] +
+         c[1] * area[1] +
+         c[2] * area[2] +
+         c[3] * area[3];
 }
 
 Texture *Texture::LoadFromFile(const char *fname) {

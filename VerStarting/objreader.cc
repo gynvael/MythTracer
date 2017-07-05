@@ -304,6 +304,54 @@ bool MtlFileReader::ReadAmbient(const char *line) {
   return true;
 }
 
+bool MtlFileReader::ReadDiffuse(const char *line) {
+  if (mtl == nullptr) {
+    fprintf(stderr, "warning: material not ready; missing newmtl\n");
+    return false;
+  }
+
+  double r, g, b;
+  if (sscanf(line, " Kd %lf %lf %lf", &r, &g, &b) != 3) {
+    fprintf(stderr, "warning: unsupported Kd format \"%s\"\n", line);
+    return false;
+  }
+
+  mtl->diffuse = { r, g, b };  
+  return true;
+}
+
+bool MtlFileReader::ReadSpecular(const char *line) {
+  if (mtl == nullptr) {
+    fprintf(stderr, "warning: material not ready; missing newmtl\n");
+    return false;
+  }
+
+  double r, g, b;
+  if (sscanf(line, " Ks %lf %lf %lf", &r, &g, &b) != 3) {
+    fprintf(stderr, "warning: unsupported Ks format \"%s\"\n", line);
+    return false;
+  }
+
+  mtl->specular = { r, g, b };  
+  return true;
+}
+
+bool MtlFileReader::ReadSpecularExp(const char *line) {
+  if (mtl == nullptr) {
+    fprintf(stderr, "warning: material not ready; missing newmtl\n");
+    return false;
+  }
+
+  double value;
+  if (sscanf(line, " Ns %lf", &value) != 1) {
+    fprintf(stderr, "warning: unsupported Ns format \"%s\"\n", line);
+    return false;
+  }
+
+  mtl->specular_exp = value;
+  return true;
+}
+
 bool MtlFileReader::ReadReflectance(const char *line) {
   if (mtl == nullptr) {
     fprintf(stderr, "warning: material not ready; missing newmtl\n");
@@ -317,6 +365,54 @@ bool MtlFileReader::ReadReflectance(const char *line) {
   }
 
   mtl->reflectance = value;
+  return true;
+}
+
+bool MtlFileReader::ReadTransparancy(const char *line) {
+  if (mtl == nullptr) {
+    fprintf(stderr, "warning: material not ready; missing newmtl\n");
+    return false;
+  }
+
+  double value;
+  if (sscanf(line, " Tr %lf", &value) != 1) {
+    fprintf(stderr, "warning: unsupported Tr format \"%s\"\n", line);
+    return false;
+  }
+
+  mtl->transparency = value;
+  return true;
+}
+
+bool MtlFileReader::ReadRefractionIndex(const char *line) {
+  if (mtl == nullptr) {
+    fprintf(stderr, "warning: material not ready; missing newmtl\n");
+    return false;
+  }
+
+  double value;
+  if (sscanf(line, " Ni %lf", &value) != 1) {
+    fprintf(stderr, "warning: unsupported Ni format \"%s\"\n", line);
+    return false;
+  }
+
+  mtl->refraction_index = value;
+  return true;
+}
+
+bool MtlFileReader::ReadTransmissionFilter(const char *line) {
+  if (mtl == nullptr) {
+    fprintf(stderr, "warning: material not ready; missing newmtl\n");
+    return false;
+  }
+
+  double r, g, b;
+  if (sscanf(line, " Tf %lf %lf %lf", &r, &g, &b) != 3) {
+    fprintf(stderr, "warning: unsupported Tf format \"%s\"\n", line);
+    return false;
+  }
+
+  mtl->transmission_filter = { r, g, b };  
   return true;
 }
 
@@ -377,16 +473,16 @@ bool MtlFileReader::ReadMtlFile(Scene *scene, const char *fname) {
   std::unordered_map<
     std::string, bool(MtlFileReader::*)(const char *)> handlers({
       { "newmtl", &MtlFileReader::ReadNewMaterial },
-      { "Ns", &MtlFileReader::ReadNotImplemented },
-      { "Ni", &MtlFileReader::ReadNotImplemented },
+      { "Ns", &MtlFileReader::ReadSpecularExp },
+      { "Ni", &MtlFileReader::ReadRefractionIndex },
       { "d", &MtlFileReader::ReadNotImplemented },
-      { "Tr", &MtlFileReader::ReadNotImplemented },
+      { "Tr", &MtlFileReader::ReadTransparancy },
       { "Refl", &MtlFileReader::ReadReflectance },      
-      { "Tf", &MtlFileReader::ReadNotImplemented },
+      { "Tf", &MtlFileReader::ReadTransmissionFilter },
       { "illum", &MtlFileReader::ReadNotImplemented },
       { "Ka", &MtlFileReader::ReadAmbient },
-      { "Kd", &MtlFileReader::ReadNotImplemented },
-      { "Ks", &MtlFileReader::ReadNotImplemented },
+      { "Kd", &MtlFileReader::ReadDiffuse },
+      { "Ks", &MtlFileReader::ReadSpecular },
       { "Ke", &MtlFileReader::ReadNotImplemented },  // XXX light
       { "map_Ka", &MtlFileReader::ReadTexture },
       { "map_Kd", &MtlFileReader::ReadNotImplemented }

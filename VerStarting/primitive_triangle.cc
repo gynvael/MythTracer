@@ -22,7 +22,16 @@ AABB Triangle::GetAABB() const {
 static V3D::basetype AreaOfTriangle(
     V3D::basetype a, V3D::basetype b, V3D::basetype c) {
   V3D::basetype p = (a + b + c) / 2.0;
-  return sqrt(p * (p - a) * (p - b) * (p - c));
+  V3D::basetype area_sqr = p * (p - a) * (p - b) * (p - c);
+
+  // It seems that due to floating point inaccuracies it's possible to get a
+  // negative result here when we are dealing with a triangle having all points
+  // on the same line (i.e. with a zero size area).
+  if (area_sqr < 0.0) {
+    return 0.0;
+  }
+
+  return sqrt(area_sqr);
 }
 
 // https://classes.soe.ucsc.edu/cmps160/Fall10/resources/barycentricInterpolation.pdf
@@ -60,7 +69,7 @@ V3D Triangle::GetUVW(const V3D& point) const {
   V3D::basetype n2 = AreaOfTriangle(a, p1, p0);
 
   V3D::basetype n = n0 + n1 + n2;
- 
+
   return (uvw[0] * n0 + uvw[1] * n1 + uvw[2] * n2) / n;
 }
 

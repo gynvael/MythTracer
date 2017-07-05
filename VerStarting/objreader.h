@@ -42,7 +42,13 @@ class MtlFileReader {
   void CommitMaterial();
   bool ReadNewMaterial(const char *line);
   bool ReadAmbient(const char *line);
+  bool ReadDiffuse(const char *line);
+  bool ReadSpecular(const char *line);
+  bool ReadSpecularExp(const char *line);
   bool ReadReflectance(const char *line);
+  bool ReadTransparancy(const char *line);
+  bool ReadTransmissionFilter(const char *line);
+  bool ReadRefractionIndex(const char *line);  
   bool ReadTexture(const char *line);
   bool ReadNotImplemented(const char *);
 
