@@ -21,9 +21,12 @@ class Triangle : public Primitive {
       std::unique_ptr<Triangle> *primitive,
       const std::string& data);
 
+  void CacheAABB();
+
   V3D vertex[3]{};
   V3D normal[3]{};
-  V3D uvw[3]{};  // TODO(gynvael): V2D perhaps?
+  V3D uvw[3]{};
+  AABB cached_aabb;
 };
 
 }  // namespace raytracer

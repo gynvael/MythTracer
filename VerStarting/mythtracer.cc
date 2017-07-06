@@ -16,8 +16,8 @@ using namespace raytracer;
 using math3d::V3D;
 using math3d::M4D;
 
-const int W = 1920/4;  // 960 480
-const int H = 1080/4;  // 540 270
+const int W = 1920;  // 960 480
+const int H = 1080;  // 540 270
 
 const int MAX_RECURSION_LEVEL = 5;
 
@@ -292,7 +292,7 @@ int main(void) {
   for (double angle = 0.0; angle <= 360.0; angle += 2.0, frame++) {
 
     // Skip some frames    
-    if (frame <= 33) {
+    if (frame <= 63) {
       continue;
     }
 
@@ -394,7 +394,7 @@ int main(void) {
   fclose(f);
   */
 
-  break;
+  //break;
   }
 
   puts("Done");

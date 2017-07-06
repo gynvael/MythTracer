@@ -178,6 +178,9 @@ bool ObjFileReader::ReadFace(const char *line) {
     // Add debug information.
     tr->debug_line_no = line_no;
 
+    // XXX
+    tr->CacheAABB();
+
     // Scene takes ownership of the Triangle object.
     scene->tree.AddPrimitive(tr);
   }

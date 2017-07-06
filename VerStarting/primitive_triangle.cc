@@ -12,10 +12,15 @@ Triangle::~Triangle() {
 }
 
 AABB Triangle::GetAABB() const {
+  return cached_aabb;
+}
+
+void Triangle::CacheAABB() {
   AABB aabb{vertex[0], vertex[0]};
   aabb.Extend(vertex[1]);
-  aabb.Extend(vertex[2]);  
-  return aabb;
+  aabb.Extend(vertex[2]);
+  cached_aabb.min = aabb.min;
+  cached_aabb.max = aabb.max;  
 }
 
 // http://www.mathopenref.com/heronsformula.html
@@ -75,9 +80,37 @@ V3D Triangle::GetUVW(const V3D& point) const {
 
 bool Triangle::IntersectRay(const Ray& ray, V3D *point,
                             V3D::basetype *distance) const {
+  // A quick ray-AABB(triangle) test that is faster than ray-triangle test 
+  // itself, so it acts as a quick negative test.
+  AABB aabb = GetAABB();    
+  const V3D& dirfrac = ray.inv_direction;
+
+  V3D::basetype t1 = (aabb.min.x() - ray.origin.x()) * dirfrac.x();
+  V3D::basetype t2 = (aabb.max.x() - ray.origin.x()) * dirfrac.x();
+  V3D::basetype t3 = (aabb.min.y() - ray.origin.y()) * dirfrac.y();
+  V3D::basetype t4 = (aabb.max.y() - ray.origin.y()) * dirfrac.y();
+  V3D::basetype t5 = (aabb.min.z() - ray.origin.z()) * dirfrac.z();
+  V3D::basetype t6 = (aabb.max.z() - ray.origin.z()) * dirfrac.z();
+
+  // If tmax is less than zero, ray (line) is intersecting AABB, but the whole
+  // AABB is behind the ray.
+  V3D::basetype tmax = std::min({
+      std::max(t1, t2), std::max(t3, t4), std::max(t5, t6)});
+  if (tmax < 0.0) {
+    return false;
+  }
+
+  // If tmin is greater than tmax, ray doesn't intersect AABB.
+  V3D::basetype tmin = std::max({
+      std::min(t1, t2), std::min(t3, t4), std::min(t5, t6)});
+  if (tmin > tmax) {
+    return false;
+  }
+
   // Moller-Trumbore intersection algorithm, as presented on Wikipedia.
   V3D e1 = vertex[1] - vertex[0];
   V3D e2 = vertex[2] - vertex[0];
+
   V3D pvec = ray.direction.Cross(e2);
   V3D::basetype det = e1.Dot(pvec);
 
@@ -99,11 +132,12 @@ bool Triangle::IntersectRay(const Ray& ray, V3D *point,
     return false;
   }
 
-  *distance = e2.Dot(qvec) * inv_det;
-  if (*distance < 0.0) {
+  V3D::basetype final_distance = e2.Dot(qvec) * inv_det;
+  if (final_distance < 0.0) {
     // Intersection is behind the camera.
     return false;
   }
+  *distance = final_distance;  
   *point = ray.origin + ray.direction * *distance;
   return true;
 }

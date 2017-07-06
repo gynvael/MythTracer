@@ -25,12 +25,18 @@ void OctTree::Finalize() {
 
 const Primitive* OctTree::IntersectRay(
     const Ray& ray, V3D *point, V3D::basetype *distance) const {
+  Ray working_ray(ray);
+  // TODO(gynvael): Actually do declare operators for T op V3D.
+  working_ray.inv_direction.v[0] = 1.0 / working_ray.direction.v[0];
+  working_ray.inv_direction.v[1] = 1.0 / working_ray.direction.v[1];
+  working_ray.inv_direction.v[2] = 1.0 / working_ray.direction.v[2];
+
   V3D::basetype dist;
-  if (!root.NodeIntersectRay(ray, &dist)) {
+  if (!root.NodeIntersectRay(working_ray, &dist)) {
     return nullptr;
   }
 
-  return root.PrimitiveIntersectRay(ray, point, distance);
+  return root.PrimitiveIntersectRay(working_ray, point, distance);
 }
 
 AABB OctTree::GetAABB() const {
@@ -131,10 +137,8 @@ void OctTree::Node::AttemptSplit() {
 // https://gamedev.stackexchange.com/questions/18436
 bool OctTree::Node::NodeIntersectRay(
     const Ray& ray, V3D::basetype *dist) const {
-  V3D dirfrac{
-      1.0 / ray.direction.x(),
-      1.0 / ray.direction.y(),
-      1.0 / ray.direction.z()};
+  // TODO(gynvael): Move the code from here and Triangle::IntersectRay to AABB.
+  const V3D& dirfrac = ray.inv_direction;
 
   V3D::basetype t1 = (aabb.min.x() - ray.origin.x()) * dirfrac.x();
   V3D::basetype t2 = (aabb.max.x() - ray.origin.x()) * dirfrac.x();
@@ -143,20 +147,17 @@ bool OctTree::Node::NodeIntersectRay(
   V3D::basetype t5 = (aabb.min.z() - ray.origin.z()) * dirfrac.z();
   V3D::basetype t6 = (aabb.max.z() - ray.origin.z()) * dirfrac.z();
 
-  V3D::basetype tmin = std::max(
-      std::max(std::min(t1, t2), std::min(t3, t4)),
-      std::min(t5, t6));
-  V3D::basetype tmax = std::min(
-      std::min(std::max(t1, t2), std::max(t3, t4)),
-      std::max(t5, t6));
-
   // If tmax is less than zero, ray (line) is intersecting AABB, but the whole
   // AABB is behind the ray.
-  if (tmax < 0) {
+  V3D::basetype tmax = std::min({
+      std::max(t1, t2), std::max(t3, t4), std::max(t5, t6)});
+  if (tmax < 0.0) {
     return false;
   }
 
   // If tmin is greater than tmax, ray doesn't intersect AABB.
+  V3D::basetype tmin = std::max({
+      std::min(t1, t2), std::min(t3, t4), std::min(t5, t6)});
   if (tmin > tmax) {
     return false;
   }
@@ -194,14 +195,30 @@ const Primitive* OctTree::Node::PrimitiveIntersectRay(
     closest_point = intersection_point;
   }
 
-  // Check if there is a closer primitive in children nodes.
+  // Check which children (if any) the ray intersects with and sort them by
+  // distance.
+  using node_distance = std::pair<const Node*, V3D::basetype>;
+  std::vector<node_distance> considered_children;
+  considered_children.reserve(8);
+
   for (const Node& n : nodes) {
     V3D::basetype dist;
     if (!n.NodeIntersectRay(ray, &dist)) {
       continue;
     }
 
-    // TODO(gynvael): Sort AABB by distance before doing the intersection tests.
+    considered_children.emplace_back(&n, dist);
+  }
+
+  std::sort(considered_children.begin(), considered_children.end(),
+      [](const node_distance& a, const node_distance &b) {
+    return a.second < b.second;
+  });
+
+  // Check if there is a closer primitive in children nodes.
+  for (const auto [n_ptr, dist] : considered_children) {
+    const Node& n = *n_ptr;
+
     V3D intersection_point;
     V3D::basetype intersection_distance;
     const Primitive *intersection_primitive = n.PrimitiveIntersectRay(
@@ -223,6 +240,10 @@ const Primitive* OctTree::Node::PrimitiveIntersectRay(
     closest_primitive = intersection_primitive;
     closest_distance = intersection_distance;
     closest_point = intersection_point;
+
+    // Since the nodes were sorted by distance, there will be no closer
+    // primitive.
+    break;
   }
 
   // Return the found coliding point, if any.

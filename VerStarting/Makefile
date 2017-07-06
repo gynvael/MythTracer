@@ -1,4 +1,6 @@
-CFLAGS=-Wall -Wextra -O3 -ggdb
+CFLAGS=-Wall -Wextra -O3 -ggdb -fno-omit-frame-pointer \
+       -march=broadwell -mtune=intel -mavx2 -std=c++1z \
+       -D_USE_MATH_DEFINES
 
 %.o: %.cc
 	g++ $(CFLAGS) -c -o $@ $< -fopenmp
