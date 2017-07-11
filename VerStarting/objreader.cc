@@ -30,16 +30,6 @@ bool ObjFileReader::ReadMaterialLibrary(const char *line) {
     fprintf(stderr, "warning: unsupported mtllib format \"%s\"\n", line);
     return false;
   }
-  
-  char *cp = strrchr(line,'\r');
-  if(cp != nullptr){
-    *cp = '\0';
-  }
-	
-  cp = strrchr(line,'\n');
-  if(cp != nullptr){
-    *cp = '\0';
-  }
 
   std::string path = base_directory.empty() ? 
       fname :
@@ -243,6 +233,16 @@ bool ObjFileReader::ReadObjFile(Scene *scene, const char *fname) {
     char line[128];
     if (fgets(line, sizeof(line), f.get()) == nullptr) {
       break;
+    }
+	
+    char *cp = strrchr(line,'\r');
+    if(cp != nullptr){
+      *cp = '\0';
+    }
+	
+    cp = strrchr(line,'\n');
+    if(cp != nullptr){
+      *cp = '\0';
     }
 
     char token[16]{};
