@@ -2,6 +2,11 @@ CXX=g++
 CFLAGS=-Wall -Wextra -O3 -ggdb -fno-omit-frame-pointer \
        -march=broadwell -mtune=intel -mavx2 -std=c++1z \
        -D_USE_MATH_DEFINES
+ifeq ($(OS),Windows_NT)
+	WINSOCK=-lws2_32
+else
+	WINSOCK=
+endif
 
 %.o: %.cc
 	$(CXX) $(CFLAGS) -c -o $@ $< -fopenmp
@@ -46,8 +51,8 @@ mythtracer_worker: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.
 	  main_net_worker.o \
 	  network.o \
 	  -o mythtracer_worker \
-	  NetSock\NetSock.cpp \
-	  -lgomp -lSDL2 -lSDL2_image -lws2_32 -static-libgcc -static-libstdc++
+	  NetSock/NetSock.cpp \
+	  -lgomp -lSDL2 -lSDL2_image $(WINSOCK) -static-libgcc -static-libstdc++
 
 mythtracer_master: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camera.o texture.o main_net_master.o network.o
 	g++ $(CFLAGS) \
@@ -61,8 +66,9 @@ mythtracer_master: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.
 	  main_net_master.o \
 	  network.o \
 	  -o mythtracer_master \
-	  NetSock\NetSock.cpp \
-	  -lgomp -lSDL2 -lSDL2_image -lws2_32
+	  NetSock/NetSock.cpp \
+	  -lpthread -fopenmp -lSDL2 -lSDL2_image -lSDL2main \
+	  -lgomp -lSDL2 -lSDL2_image $(WINSOCK)
 
 test: math3d_test octtree_test
 	./math3d_test

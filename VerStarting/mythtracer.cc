@@ -1,7 +1,8 @@
 #include <stdint.h>
 #include <time.h>
 #include <memory>
-#include <limits> 
+#include <limits>
+#include <cstring>
 
 #include "mythtracer.h"
 
