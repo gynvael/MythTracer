@@ -1,4 +1,5 @@
 #include "camera.h"
+#include <cstring>
 
 namespace raytracer {
 
