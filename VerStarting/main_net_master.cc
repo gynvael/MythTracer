@@ -52,6 +52,13 @@ void CommitWorkChunk(WorkChunk *work, const std::string& id) {
   g_work_finished.push_back(std::move(ready));
 }
 
+void ReturnWorkChunk(WorkChunk *work_ptr) {
+  puts("Returning work to queue.");
+  std::lock_guard<std::mutex> lock(g_work_available_guard);
+  std::unique_ptr<WorkChunk> work(work_ptr);
+  g_work_available.push_back(std::move(work));
+}
+
 WorkChunk *GetWorkChunk() {
   // Work might not be available immediately.
   WorkChunk *work = nullptr;
@@ -100,7 +107,12 @@ void WorkerHandler(NetSock *sock) {
   // Until the worker disconnects or times out, send it stuff to do.
   // Unless there is no more stuff to do.
   for (;;) {
-    std::unique_ptr<WorkChunk> work(GetWorkChunk());
+    struct WorkReturner {
+      void operator()(WorkChunk *work) const {
+        ReturnWorkChunk(work);
+      };
+    };
+    std::unique_ptr<WorkChunk, WorkReturner> work(GetWorkChunk());
     if (work == nullptr) {
       // Done!
       break;
@@ -110,7 +122,7 @@ void WorkerHandler(NetSock *sock) {
     p.reset(netproto::MasterSetCamera::Make(id, &work->camera));
     if (!netproto::SendPacket(s.get(), p.get())) {
       printf("WH:%s: failed to send or disconnected\n", id.c_str());
-      fflush(stdout);  
+      fflush(stdout);
       return;
     }
 
@@ -149,7 +161,7 @@ void WorkerHandler(NetSock *sock) {
     printf("WH:%s: sent in pixels!\n", id.c_str());
     fflush(stdout);
 
-    CommitWorkChunk(work.release(), id);    
+    CommitWorkChunk(work.release(), id);
   }
 
   printf("WH:%s: no more work, disconnecting!\n", addr);

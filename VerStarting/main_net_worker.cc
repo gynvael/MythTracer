@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
 
     auto s = std::make_unique<NetSock>();
     if (!s->Connect(argv[2], 12345)) {
-      printf("error: failed to connect to %s:12345\n", argv[1]);
+      printf("error: failed to connect to %s:12345\n", argv[2]);
 
       // Sleep.
       std::this_thread::sleep_for(1s);

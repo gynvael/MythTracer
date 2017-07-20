@@ -1,12 +1,15 @@
 CXX=g++
 CFLAGS=-Wall -Wextra -O3 -ggdb -fno-omit-frame-pointer \
-       -march=broadwell -mtune=intel -mavx2 -std=c++1z \
-       -D_USE_MATH_DEFINES
+       -std=c++1z \
+       -D_USE_MATH_DEFINES \
+       #-march=broadwell -mtune=intel -mavx2
+
 ifeq ($(OS),Windows_NT)
 	WINSOCK=-lws2_32
 else
 	WINSOCK=
 endif
+
 
 %.o: %.cc
 	$(CXX) $(CFLAGS) -c -o $@ $< -fopenmp
