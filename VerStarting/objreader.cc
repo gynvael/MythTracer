@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <memory>
 #include <vector>
+#include <cstring>
 #include <string>
 #include <sstream>
 
@@ -233,6 +234,16 @@ bool ObjFileReader::ReadObjFile(Scene *scene, const char *fname) {
     char line[128];
     if (fgets(line, sizeof(line), f.get()) == nullptr) {
       break;
+    }
+	
+    char *cp = strrchr(line,'\r');
+    if(cp != nullptr){
+      *cp = '\0';
+    }
+	
+    cp = strrchr(line,'\n');
+    if(cp != nullptr){
+      *cp = '\0';
     }
 
     char token[16]{};
@@ -495,6 +506,16 @@ bool MtlFileReader::ReadMtlFile(Scene *scene, const char *fname) {
     char line[128];
     if (fgets(line, sizeof(line), f.get()) == nullptr) {
       break;
+    }
+    
+    char *cp = strrchr(line,'\r');
+    if(cp != nullptr){
+      *cp = '\0';
+    }
+	
+    cp = strrchr(line,'\n');
+    if(cp != nullptr){
+      *cp = '\0';
     }
 
     char token[16]{};
