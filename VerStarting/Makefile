@@ -43,7 +43,7 @@ mythtracer: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camer
 	  -lgomp -lSDL2 -lSDL2_image
 
 mythtracer_worker: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camera.o texture.o main_net_worker.o network.o
-	g++ $(CFLAGS) \
+	$(CXX) $(CFLAGS) \
 	  mythtracer.o \
 	  objreader.o \
 	  octtree.o \
@@ -58,7 +58,7 @@ mythtracer_worker: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.
 	  -lgomp -lSDL2 -lSDL2_image $(WINSOCK) -static-libgcc -static-libstdc++
 
 mythtracer_master: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camera.o texture.o main_net_master.o network.o
-	g++ $(CFLAGS) \
+	$(CXX) $(CFLAGS) \
 	  mythtracer.o \
 	  objreader.o \
 	  octtree.o \
