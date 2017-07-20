@@ -1,4 +1,6 @@
 #pragma once
+#include <stdint.h>
+#include <vector>
 #include "math3d.h"
 #include "ray.h"
 
@@ -32,6 +34,15 @@ class Camera {
 
   V3D GetDirection() const;
   Sensor GetSensor(int width, int height) const;  
+
+  static const size_t kSerializedSize = 
+    /* origin */ sizeof(V3D) +
+    /* pitch  */ sizeof(V3D::basetype) +
+    /* yaw    */ sizeof(V3D::basetype) +
+    /* roll   */ sizeof(V3D::basetype) +
+    /* aov    */ sizeof(V3D::basetype);
+  void Serialize(std::vector<uint8_t> *bytes);
+  bool Deserialize(const std::vector<uint8_t>& bytes);
 };
 
 }  // namespace raytracer

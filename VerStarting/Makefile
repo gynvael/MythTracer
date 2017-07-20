@@ -20,7 +20,7 @@ octtree_test: octtree_test.o aabb.o octtree.o primitive_triangle.o test_helper.o
 	  aabb.o \
 	  -o octtree_test
 
-mythtracer: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camera.o texture.o
+mythtracer: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camera.o texture.o main_local.o
 	g++ $(CFLAGS) \
 	  mythtracer.o \
 	  objreader.o \
@@ -29,8 +29,39 @@ mythtracer: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camer
 	  aabb.o \
 	  camera.o \
 	  texture.o \
+	  main_local.o \
 	  -o mythtracer	\
 	  -lgomp -lSDL2 -lSDL2_image
+
+mythtracer_worker: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camera.o texture.o main_net_worker.o network.o
+	g++ $(CFLAGS) \
+	  mythtracer.o \
+	  objreader.o \
+	  octtree.o \
+	  primitive_triangle.o \
+	  aabb.o \
+	  camera.o \
+	  texture.o \
+	  main_net_worker.o \
+	  network.o \
+	  -o mythtracer_worker \
+	  NetSock\NetSock.cpp \
+	  -lgomp -lSDL2 -lSDL2_image -lws2_32 -static-libgcc -static-libstdc++
+
+mythtracer_master: mythtracer.o objreader.o octtree.o primitive_triangle.o aabb.o camera.o texture.o main_net_master.o network.o
+	g++ $(CFLAGS) \
+	  mythtracer.o \
+	  objreader.o \
+	  octtree.o \
+	  primitive_triangle.o \
+	  aabb.o \
+	  camera.o \
+	  texture.o \
+	  main_net_master.o \
+	  network.o \
+	  -o mythtracer_master \
+	  NetSock\NetSock.cpp \
+	  -lgomp -lSDL2 -lSDL2_image -lws2_32
 
 test: math3d_test octtree_test
 	./math3d_test
@@ -39,8 +70,8 @@ test: math3d_test octtree_test
 clean:
 	del *.o
 
-run: mythtracer
-	./mythtracer
+run: mythtracer_worker
+	./mythtracer_worker
 
 all: mythtracer test
 

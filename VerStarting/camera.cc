@@ -67,5 +67,32 @@ Ray Camera::Sensor::GetRay(int x, int y) const {
   return { cam->origin, direction };
 }
 
+void Camera::Serialize(std::vector<uint8_t> *bytes) {
+  bytes->resize(kSerializedSize);
+
+  // TODO(gynvael): Make this sane, plz.
+  uint8_t *ptr = &(*bytes)[0];
+  memcpy(ptr, &origin, sizeof(V3D)); ptr += sizeof(V3D);
+  memcpy(ptr, &pitch, sizeof(V3D::basetype)); ptr += sizeof(V3D::basetype);
+  memcpy(ptr, &yaw, sizeof(V3D::basetype)); ptr += sizeof(V3D::basetype);
+  memcpy(ptr, &roll, sizeof(V3D::basetype)); ptr += sizeof(V3D::basetype);
+  memcpy(ptr, &aov, sizeof(V3D::basetype));
+}
+
+bool Camera::Deserialize(const std::vector<uint8_t>& bytes) {
+  if (bytes.size() != kSerializedSize) {
+    return false;
+  }
+
+  // TODO(gynvael): Make this sane, plz.
+  const uint8_t *ptr = &bytes[0];
+  memcpy(&origin, ptr, sizeof(V3D)); ptr += sizeof(V3D);
+  memcpy(&pitch, ptr, sizeof(V3D::basetype)); ptr += sizeof(V3D::basetype);
+  memcpy(&yaw, ptr, sizeof(V3D::basetype)); ptr += sizeof(V3D::basetype);
+  memcpy(&roll, ptr, sizeof(V3D::basetype)); ptr += sizeof(V3D::basetype);
+  memcpy(&aov, ptr, sizeof(V3D::basetype));
+  return true;
+}
+
 }  // namespace raytracer
 

@@ -1,39 +1,22 @@
 #include <stdint.h>
 #include <time.h>
 #include <memory>
-#include <vector>
-#ifdef __unix__
-#  include <sys/stat.h>
-#  include <sys/types.h>
-#else
-#  include <direct.h>
-#endif
-#include "camera.h"
-#include "objreader.h"
-#include "octtree.h"
+#include <limits> 
+
+#include "mythtracer.h"
 
 using namespace raytracer;
 using math3d::V3D;
 using math3d::M4D;
 
-const int W = 1920;  // 960 480
-const int H = 1080;  // 540 270
-
-const int MAX_RECURSION_LEVEL = 5;
-
-struct PerPixelDebugInfo { 
-  int line_no;
-  V3D point;
-};
-
-V3D TraceRayWorker(
-    Scene *scene, const Ray& ray, int level,
+V3D MythTracer::TraceRayWorker(
+    const Ray& ray, int level,
     bool in_object,  // Used in transparency.
     V3D::basetype current_reflection_coef,
     PerPixelDebugInfo *debug) {
   V3D intersection_point;
   V3D::basetype intersection_distance;
-  auto primitive = scene->tree.IntersectRay(
+  auto primitive = scene.tree.IntersectRay(
       ray, &intersection_point, &intersection_distance);
 
   if (primitive == nullptr) {
@@ -91,7 +74,7 @@ V3D TraceRayWorker(
 
   V3D color{};
 
-  for (const auto& light : scene->lights) {
+  for (const auto& light : scene.lights) {
     V3D light_direction = light.position - intersection_point;
     light_direction.Norm();
 
@@ -119,7 +102,7 @@ V3D TraceRayWorker(
 
       V3D shadow_intersection_point;
       V3D::basetype shadow_distance;
-      auto shadow_primitive = scene->tree.IntersectRay(
+      auto shadow_primitive = scene.tree.IntersectRay(
           shadow_ray, &shadow_intersection_point, &shadow_distance);
 
       if (shadow_primitive == nullptr) {
@@ -199,7 +182,7 @@ V3D TraceRayWorker(
       current_reflection_coef > 0.01 &&
       !in_object) {
     color += TraceRayWorker(
-        scene, reflected_ray,
+        reflected_ray,
         level + 1, in_object, current_reflection_coef * mtl->reflectance,
         nullptr) * mtl->reflectance;
   }
@@ -234,7 +217,7 @@ V3D TraceRayWorker(
     };
 
     color += TraceRayWorker(
-        scene, refracted_ray,
+        refracted_ray,
         level + 1, !in_object,
         current_reflection_coef,
         nullptr) * mtl->transmission_filter * mtl->transparency;
@@ -243,11 +226,12 @@ V3D TraceRayWorker(
   return color;
 }
 
-V3D TraceRay(Scene *scene, const Ray& ray, PerPixelDebugInfo *debug) {
-  return TraceRayWorker(scene, ray, 0, false, 1.0, debug);
+V3D MythTracer::TraceRay(
+    const Ray& ray, PerPixelDebugInfo *debug) {
+  return TraceRayWorker(ray, 0, false, 1.0, debug);
 }
 
-void V3DtoRGB(const V3D& v, uint8_t rgb[3]) {
+void MythTracer::V3DtoRGB(const V3D& v, uint8_t rgb[3]) {
   for (int i = 0; i < 3; i++) {
     rgb[i] = v.v[i] > 1.0 ? 255 :
              v.v[i] < 0.0 ? 0 :
@@ -255,151 +239,191 @@ void V3DtoRGB(const V3D& v, uint8_t rgb[3]) {
   }
 }
 
-int main(void) {
-  puts("Creating anim/ directory");
-#ifdef __unix__
-  mkdir("anim", 0700);
-#else
-  _mkdir("anim");
-#endif
+Scene *MythTracer::GetScene() {
+  return &scene;
+}
 
-  printf("Resolution: %u %u\n", W, H);
-
-  Scene scene;
-
+bool MythTracer::LoadObj(const char *fname) {
   puts("Reading .OBJ file.");
   ObjFileReader objreader;
-  if (!objreader.ReadObjFile(&scene, "../Models/Living Room USSU Design.obj")) {
-    return -1;
+  if (!objreader.ReadObjFile(&scene, fname)) {
+    return false;
+  }
+
+  was_scene_finalized = false;
+  return true;
+}
+
+bool MythTracer::RayTrace(
+    int image_width, int image_height, 
+    Camera *camera,
+    std::vector<uint8_t> *output_bitmap) {
+  WorkChunk chunk{
+      image_width, image_height,
+      0, 0, image_width, image_height,
+      *camera, {}, {}
+  };
+  chunk.output_bitmap.resize(image_width * image_height * 3);
+
+  bool res = RayTrace(&chunk);
+  if (!res) {
+    return false;
+  }
+
+  *output_bitmap = std::move(chunk.output_bitmap);
+
+  return true;
+}
+
+
+bool MythTracer::RayTrace(WorkChunk *chunk) {
+  if (!was_scene_finalized) {
+    puts("Finalizing tree.");    
+    scene.tree.Finalize();
+    was_scene_finalized = true;
   }
   
-  puts("Finalizing tree.");
-  scene.tree.Finalize();
-
-  AABB aabb = scene.tree.GetAABB();
-  printf("%f %f %f x %f %f %f\n",
-      aabb.min.v[0],
-      aabb.min.v[1],
-      aabb.min.v[2],
-      aabb.max.v[0],
-      aabb.max.v[1],
-      aabb.max.v[2]);
-
-
-  std::vector<PerPixelDebugInfo> debug(W * H);
-  std::vector<uint8_t> bitmap(W * H * 3);
-  int frame = 0;
-  for (double angle = 0.0; angle <= 360.0; angle += 2.0, frame++) {
-
-    // Skip some frames    
-    if (frame <= 63) {
-      continue;
-    }
-
-  // Really good camera setting.
-  /*Camera cam{
-    { 300.0, 57.0, 160.0 },
-     0.0, 180.0, 0.0,
-     110.0
-  };*/
-
-  // Camera set a lamp.
-  /*Camera cam{
-    { 250.0, 50.0, -20.0 },
-    -90.0, 180.0, 0.0,
-    110.0
-  };*/
-
-  Camera cam{
-    { 300.0, 107.0, 40.0 },
-     30.0, angle + 90, 0.0,
-     110.0
-  };
-
-  // XXX: light at camera
-  scene.lights.clear();
-  scene.lights.push_back(
-      Light{
-          { 231.82174, 81.69966, -27.78259 },
-          { 0.3, 0.3, 0.3 },
-          { 1.0, 1.0, 1.0 },
-          { 1.0, 1.0, 1.0 }
-  });
-
-  scene.lights.push_back(
-      Light{
-          { 200, 80.0, 0 },
-          { 0.0, 0.0, 0.0 },
-          { 0.3, 0.3, 0.3 },
-          { 0.3, 0.3, 0.3 }
-  });
-
-  scene.lights.push_back(
-      Light{
-          { 200, 80.0, 80 },
-          { 0.0, 0.0, 0.0 },
-          { 0.3, 0.3, 0.3 },
-          { 0.3, 0.3, 0.3 }
-  });
-
-  scene.lights.push_back(
-      Light{
-          { 200, 80.0, 160 },
-          { 0.0, 0.0, 0.0 },
-          { 0.3, 0.3, 0.3 },
-          { 0.3, 0.3, 0.3 }
-  });  
-
   puts("Rendering.");
-  clock_t tm_start = clock();  
-  Camera::Sensor sensor = cam.GetSensor(W, H);
+  const clock_t tm_start = clock();  
+  Camera::Sensor sensor = chunk->camera.GetSensor(
+      chunk->image_width, chunk->image_height);  
 
-  #pragma omp parallel  
+  #pragma omp parallel
   {
   #pragma omp for
-  for (int j = 0; j < H; j++) {
-    for (int i = 0; i < W; i++) {
-      V3D color = TraceRay(&scene, sensor.GetRay(i, j), 
-          nullptr /* &debug[j * W + i] */);
-      V3DtoRGB(color, &bitmap[(j * W + i) * 3]);
+  for (int j = 0; j < chunk->chunk_height; j++) {
+    for (int i = 0; i < chunk->chunk_width; i++) {
+      V3D color = TraceRay(
+          sensor.GetRay(chunk->chunk_x + i, chunk->chunk_y + j),
+          !chunk->output_debug.empty() ? 
+            &chunk->output_debug[j * chunk->chunk_width + i] : nullptr);
+      V3DtoRGB(color, &chunk->output_bitmap[(j * chunk->chunk_width + i) * 3]);
     }
     putchar('.'); fflush(stdout);
   }
   }
 
-  clock_t tm_end = clock();
-  float tm = (float)(tm_end - tm_start) / (float)CLOCKS_PER_SEC;
+  const clock_t tm_end = clock();
+  const float tm = (float)(tm_end - tm_start) / (float)CLOCKS_PER_SEC;
   printf("%.3fs\n", tm);
 
-  puts("Writing");
+  return true;
+}
 
-  char fname[256];
-  sprintf(fname, "anim/dump_%.5i.raw", frame);
+void WorkChunk::SerializeInput(std::vector<uint8_t> *bytes) {
+  bytes->resize(kSerializedInputSize);
 
-  FILE *f = fopen(fname, "wb");
-  fwrite(&bitmap[0], bitmap.size(), 1, f);
-  fclose(f);
+  // TODO(gynvael): Make this sane.
+  uint8_t *ptr = &(*bytes)[0];
 
-  /*sprintf(fname, "anim/dump_%.5i.txt", frame);
-  f = fopen(fname, "w");
-  int idx = 0;
-  for (int j = 0; j < H; j++) {
-    for (int i = 0; i < W; i++, idx++) {
-      fprintf(f, "%i, %i: line %i  point %s\n",
-          i, j, 
-          debug[idx].line_no,
-          V3DStr(debug[idx].point));
-    }
+  uint32_t u_image_width = image_width;
+  uint32_t u_image_height = image_height;
+  uint32_t u_chunk_x = chunk_x;
+  uint32_t u_chunk_y = chunk_y;
+  uint32_t u_chunk_width = chunk_width;
+  uint32_t u_chunk_height = chunk_height;
+
+  memcpy(ptr, &u_image_width, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+  memcpy(ptr, &u_image_height, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+  memcpy(ptr, &u_chunk_x, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+  memcpy(ptr, &u_chunk_y, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+  memcpy(ptr, &u_chunk_width, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+  memcpy(ptr, &u_chunk_height, sizeof(uint32_t)); 
+}
+
+bool WorkChunk::DeserializeInput(const std::vector<uint8_t>& bytes) {
+  if (bytes.size() != kSerializedInputSize) {
+    return false;
   }
-  fclose(f);
-  */
 
-  //break;
+  uint32_t u_image_width;
+  uint32_t u_image_height;
+  uint32_t u_chunk_x;
+  uint32_t u_chunk_y;
+  uint32_t u_chunk_width;
+  uint32_t u_chunk_height;
+
+  // TODO(gynvael): Make this sane.
+  const uint8_t *ptr = &bytes[0];
+  memcpy(&u_image_width, ptr, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+  memcpy(&u_image_height, ptr, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+  memcpy(&u_chunk_x, ptr, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+  memcpy(&u_chunk_y, ptr, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+  memcpy(&u_chunk_width, ptr, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+  memcpy(&u_chunk_height, ptr, sizeof(uint32_t));
+
+  // A set of constraints.
+  // TODO(gynvael): Break this up, add error messages. Here and everywhere else.
+  if (u_image_width > 100000 ||
+      u_image_height > 100000 ||
+      u_chunk_x > u_image_width ||
+      u_chunk_y > u_image_height ||
+      u_chunk_width > u_image_width ||
+      u_chunk_height > u_image_height ||
+      u_chunk_x + u_chunk_width > u_image_width ||
+      u_chunk_y + u_chunk_height > u_image_height ||
+      u_image_width == 0 ||
+      u_image_height == 0 ||
+      u_chunk_width == 0 ||
+      u_chunk_height == 0) {
+    return false;
   }
 
-  puts("Done");
+  image_width = u_image_width;
+  image_height = u_image_height;
+  chunk_x = u_chunk_x;
+  chunk_y = u_chunk_y;
+  chunk_width = u_chunk_width;
+  chunk_height = u_chunk_height;
 
+  return true;
+}
 
-  return 0;
+bool WorkChunk::SerializeOutput(std::vector<uint8_t> *bytes) {
+  if (output_bitmap.size() > std::numeric_limits<uint32_t>::max()) {
+    fprintf(stderr, "error: too large WorkerChunk, cannot serialize\n");
+    return false;
+  }
+
+  uint32_t sz = output_bitmap.size();
+
+  // TODO(gynvael): Make this sane.
+  bytes->resize(sizeof(uint32_t) + sz);
+  uint8_t *ptr = &(*bytes)[0];
+  memcpy(ptr, &sz, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+  memcpy(ptr, &output_bitmap[0], output_bitmap.size());
+  return true;
+}
+
+bool WorkChunk::DeserializeOutput(const std::vector<uint8_t>& bytes) {
+  if (bytes.size() < kSerializedOutputMinimumSize) {
+    return false;
+  }
+
+  // TODO(gynvael): Make this sane.
+  const uint8_t *ptr = &bytes[0];
+
+  uint32_t sz;
+  memcpy(&sz, ptr, sizeof(uint32_t)); ptr += sizeof(uint32_t);
+
+  uint64_t partial_chunk_sz = (uint64_t)chunk_width * (uint64_t)chunk_height;
+  if (sz / 3 != partial_chunk_sz || sz % 3 != 0) {
+    return false;
+  }
+
+  uint64_t chunk_sz = partial_chunk_sz * 3;
+  // TODO(gynvael): This check is probably redundant. Remove if so.
+  if (chunk_sz != sz) {
+    return false;
+  }
+
+  if (chunk_sz > std::numeric_limits<size_t>::max()) {
+    return false;
+  }
+
+  output_bitmap.resize(chunk_sz);
+  memcpy(&output_bitmap[0], ptr, chunk_sz);
+
+  return true;
 }
 
